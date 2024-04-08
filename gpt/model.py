@@ -12,6 +12,7 @@ class ModelArgs(Serializable):
     num_heads: int
 
     dropout: Optional[float] = 0.1
+    ff_dropout: Optional[float] = 0.1
     qkv_bias: Optional[bool] = False
 
 class MultiHeadAttention(nn.Module):
@@ -88,6 +89,24 @@ class MultiHeadAttention(nn.Module):
 
         return context_vectors
 
+# Implementation of the FF block
+class GeLU(nn.Module):
+    def __init__(self):
+        super().__init__()
 
+    def forward(self, x):
+        return 0.5 * x * (1 + torch.tanh(torch.sqrt(torch.tensor(2*torch.pi))) * (x + 0.044715 * torch.pow(x, 3)))
 
+class FeedForward(nn.Module):
+    def __init__(self, args: ModelArgs):
+        super().__init__()
+        self.model = nn.Sequential(
+            nn.Linear(args.emb_dim, 4 * args.emb_dim),
+            GeLU(),
+            nn.Linear(4 * args.emb_dim, args.emb_dim),
+            nn.Dropout(args.ff_dropout)
+        )
+
+    def forward(self, x):
+        return self.model(x)
 
