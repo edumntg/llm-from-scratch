@@ -110,3 +110,17 @@ class FeedForward(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+# LayerNorm
+class LayerNorm(nn.Module):
+    def __init__(self, args: ModelArgs):
+        super().__init__()
+
+        self.eps = args.norm_eps
+        self.scale = nn.Parameter(torch.ones(args.emb_dim))
+        self.bias = nn.Parameter(torch.ones(args.emb_dim))
+
+    def forward(self, x):
+        mean = x.mean(dim = -1, keepdim = True)
+        var = x.var(dim = -1, keepdim = True)
+        return self.scale * ((x - mean) / torch.sqrt(var + self.eps)) + self.bias
+    
