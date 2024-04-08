@@ -7,13 +7,16 @@ from dataclasses import dataclass
 
 @dataclass
 class ModelArgs(Serializable):
-    emb_dim: int
-    context_length: int
-    num_heads: int
+    emb_dim: int                            # Embedding dimension
+    vocab_size: int                         # Vocab size
+    context_length: int                     # Context length/window
+    num_heads: int                          # Num of attention heads
+    num_blocks: int                         # Num of transformer blocks
 
-    dropout: Optional[float] = 0.1
-    ff_dropout: Optional[float] = 0.1
-    qkv_bias: Optional[bool] = False
+    dropout: Optional[float] = 0.1          # Dropout rate
+    ff_dropout: Optional[float] = 0.1       # Feed-forward's dropout rate
+    qkv_bias: Optional[bool] = False        # Bias on QKV parameters
+    norm_eps: Optional[float] = 1e-5        # Normalization epsilon (use really small values)
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, args: ModelArgs):
@@ -64,7 +67,6 @@ class MultiHeadAttention(nn.Module):
         attn_scores = Q @ K.transpose(2,3) # (..., num_tokens, head_dim)@(..., head_dim, num_tokens) = (..., num_tokens, num_tokens)
 
         # Apply mask
-        print(attn_scores.shape)
         attn_scores.masked_fill_(self.mask.bool()[:num_tokens, :num_tokens], -torch.inf) # READ AGAIN IN CHAPTER 2
 
         # Now compute weights
@@ -124,3 +126,66 @@ class LayerNorm(nn.Module):
         var = x.var(dim = -1, keepdim = True)
         return self.scale * ((x - mean) / torch.sqrt(var + self.eps)) + self.bias
     
+# Transformer Block
+class TransformerBlock(nn.Module):
+    def __init__(self, args: ModelArgs):
+        super().__init__()
+
+        self.norm1 = LayerNorm(args)
+        self.attention = MultiHeadAttention(args)
+        self.dropout1 = nn.Dropout(args.dropout)
+        self.norm2 = LayerNorm(args)
+        self.feedforward = FeedForward(args)
+        self.dropout2 = nn.Dropout(args.dropout)
+
+
+    def forward(self, x):
+
+        shortcut = x
+        x = self.norm1(x)
+        x = self.attention(x)
+        x = self.dropout1(x)
+
+        # Now, add shortcut
+        x = x + shortcut
+
+        # Update shortcut
+        shortcut = x
+        x = self.norm2(x)
+        x = self.feedforward(x)
+        x = self.dropout2(x)
+
+        x = x + shortcut
+
+        return x
+
+class GPTModel(nn.Module):
+    def __init__(self, args: ModelArgs):
+        super().__init__()
+        
+        self.token_embedding = nn.Embedding(args.vocab_size, args.emb_dim) # Token embedding
+        self.pos_embedding = nn.Embedding(args.context_length, args.emb_dim) # Positional Embedding
+
+        self.transformer = nn.Sequential(
+            *[TransformerBlock(args) for _ in range(args.num_blocks)]
+        )
+
+        self.final_norm = LayerNorm(args)
+        self.output = nn.Linear(args.emb_dim, args.vocab_size)
+
+    def forward(self, inputs):
+        # X is a tokenized vector
+        batch_size, seq_len = inputs.shape
+        tok_emb = self.token_embedding(inputs)
+
+        pos_emb = self.pos_embedding(torch.arange(seq_len))
+
+        x = tok_emb + pos_emb
+
+        x = self.transformer(x)
+
+        x = self.final_norm(x)
+
+        logits = self.output(x)
+
+        return logits
