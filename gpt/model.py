@@ -178,7 +178,7 @@ class GPTModel(nn.Module):
         batch_size, seq_len = inputs.shape
         tok_emb = self.token_embedding(inputs)
 
-        pos_emb = self.pos_embedding(torch.arange(seq_len))
+        pos_emb = self.pos_embedding(torch.arange(seq_len, device = inputs.device))
 
         x = tok_emb + pos_emb
 

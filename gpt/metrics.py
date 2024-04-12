@@ -1,7 +1,8 @@
 import torch
 
-def calculate_batch_loss(model, inputs_batch, targets_batch):
+def calculate_batch_loss(model, inputs_batch, targets_batch, device = "cpu"):
 
+    inputs_batch, targets_batch = inputs_batch.to(device), targets_batch.to(device)
     # First, compute logits
     logits = model(inputs_batch)
 
