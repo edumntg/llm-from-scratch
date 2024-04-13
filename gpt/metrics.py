@@ -14,10 +14,10 @@ def calculate_batch_loss(model, inputs_batch, targets_batch, device = "cpu"):
 
     return loss
 
-def calculate_loader_loss(model, data_loader):
+def calculate_loader_loss(model, data_loader, device = "cpu"):
     total_loss = 0.0
     for i, (inputs_batch, targets_batch) in enumerate(data_loader):
-        total_loss += calculate_batch_loss(model, inputs_batch, targets_batch).item()
+        total_loss += calculate_batch_loss(model, inputs_batch, targets_batch, device).item()
     
     total_loss /= len(data_loader)
 
